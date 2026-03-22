@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Farma-Docs | Portal Materi Farmasi</title>
+    
+    <!-- Tailwind CSS untuk Styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & Babel -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; scroll-behavior: smooth; }
+        .animate-fade-in { animation: fadeIn 0.4s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .glass-card { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); }
+    </style>
+</head>
+<body class="bg-[#f0f9f6] text-slate-900">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // Komponen Icon yang stabil
+        const Icon = ({ name, size = 24, className = "" }) => {
+            const iconRef = useRef(null);
+            useEffect(() => {
+                if (window.lucide && iconRef.current) {
+                    iconRef.current.innerHTML = '';
+                    const iconElement = document.createElement('i');
+                    iconElement.setAttribute('data-lucide', name.toLowerCase());
+                    if (className) iconElement.className = className;
+                    iconRef.current.appendChild(iconElement);
+                    window.lucide.createIcons({
+                        attrs: { 'stroke-width': 2, width: size, height: size },
+                        nameAttr: 'data-lucide'
+                    });
+                }
+            }, [name, size, className]);
+            return <span ref={iconRef} className="inline-flex items-center justify-center"></span>;
+        };
+
+        const App = () => {
+            const [view, setView] = useState('home');
+            const [password, setPassword] = useState('');
+            const [isAuthenticated, setIsAuthenticated] = useState(false);
+            const [searchQuery, setSearchQuery] = useState('');
+            
+            // State Database Materi
+            const [courses, setCourses] = useState([
+                {
+                    id: 1,
+                    name: "Farmakologi Dasar",
+                    lecturer: "Apt. Drs. H. Ahmad Fauzi, M.Farm",
+                    materials: [
+                        { id: 101, title: "Farmakokinetika & Dinamika", type: "PDF", date: "2023-10-01" },
+                        { id: 102, title: "Mekanisme Kerja Obat", type: "PPT", date: "2023-10-08" }
+                    ]
+                },
+                {
+                    id: 2,
+                    name: "Kimia Farmasi Analisis",
+                    lecturer: "Dr. Apt. Sari Wahyuni",
+                    materials: [
+                        { id: 201, title: "Metode Titrasi Kompleksometri", type: "PPT", date: "2023-10-05" }
+                    ]
+                }
+            ]);
+
+            // State Form Admin
+            const [newCourse, setNewCourse] = useState({ name: '', lecturer: '' });
+            const [editingCourse, setEditingCourse] = useState(null);
+            const [selectedFile, setSelectedFile] = useState(null);
+            const [newMaterial, setNewMaterial] = useState({ courseId: '', title: '', type: 'PDF' });
+
+            const handleVerifyPassword = () => {
+                if (password === '12345678') {
+                    setIsAuthenticated(true);
+                    setPassword('');
+                } else {
+                    alert("Sandi akses salah! Gunakan: 12345678");
+                }
+            };
+
+            // Fungsi Manajemen Mata Kuliah
+            const addCourse = (e) => {
+                e.preventDefault();
+                const course = { id: Date.now(), name: newCourse.name, lecturer: newCourse.lecturer, materials: [] };
+                setCourses([...courses, course]);
+                setNewCourse({ name: '', lecturer: '' });
+            };
+
+            const deleteCourse = (id) => {
+                if(confirm("Hapus mata kuliah ini beserta semua materinya?")) {
+                    setCourses(courses.filter(c => c.id !== id));
+                }
+            };
+
+            const updateCourse = () => {
+                setCourses(courses.map(c => c.id === editingCourse.id ? editingCourse : c));
+                setEditingCourse(null);
+            };
+
+            // Fungsi Unggah Materi
+            const handleFileSelect = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    setSelectedFile(file);
+                    if (!newMaterial.title) setNewMaterial({...newMaterial, title: file.name.split('.')[0]});
+                }
+            };
+
+            const uploadMaterial = (e) => {
+                e.preventDefault();
+                if (!newMaterial.courseId) return alert("Pilih mata kuliah terlebih dahulu!");
+                
+                const updated = courses.map(c => {
+                    if (c.id === parseInt(newMaterial.courseId)) {
+                        return {
+                            ...c,
+                            materials: [...c.materials, {
+                                id: Date.now(),
+                                title: newMaterial.title,
+                                type: newMaterial.type,
+                                date: new Date().toISOString().split('T')[0]
+                            }]
+                        };
+                    }
+                    return c;
+                });
+                setCourses(updated);
+                setSelectedFile(null);
+                setNewMaterial({ courseId: '', title: '', type: 'PDF' });
+                alert("Materi berhasil ditambahkan ke pustaka!");
+            };
+
+            return (
+                <div className="min-h-screen pb-20">
+                    {/* Header */}
+                    <header className="bg-emerald-800 text-white p-6 shadow-xl sticky top-0 z-50 border-b-4 border-emerald-400">
+                        <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+                            <div className="flex items-center gap-4 cursor-pointer" onClick={() => setView('home')}>
+                                <div className="bg-white p-2 rounded-xl shadow-lg flex items-center justify-center">
+                                    <Icon name="Pill" className="text-emerald-700" size={28} />
+                                </div>
+                                <div>
+                                    <h1 className="text-2xl font-black tracking-tight">FARMA-DOCS</h1>
+                                    <p className="text-emerald-100 text-[9px] uppercase tracking-widest font-bold">Portal Akademik Farmasi</p>
+                                </div>
+                            </div>
+                            <nav className="flex gap-2 bg-emerald-900/50 p-1.5 rounded-2xl border border-emerald-700">
+                                <button onClick={() => setView('home')} className={`px-5 py-2 rounded-xl text-xs font-bold transition ${view === 'home' ? 'bg-emerald-400 text-emerald-950 shadow-md' : 'hover:bg-emerald-800'}`}>DASHBOARD</button>
+                                <button onClick={() => setView('view-materi')} className={`px-5 py-2 rounded-xl text-xs font-bold transition ${view === 'view-materi' ? 'bg-emerald-400 text-emerald-950 shadow-md' : 'hover:bg-emerald-800'}`}>PERPUSTAKAAN</button>
+                                <button onClick={() => setView('upload-materi')} className={`px-5 py-2 rounded-xl text-xs font-bold transition ${view === 'upload-materi' || isAuthenticated ? 'bg-emerald-400 text-emerald-950 shadow-md' : 'hover:bg-emerald-800'}`}>AKSES KAPRODI</button>
+                            </nav>
+                        </div>
+                    </header>
+
+                    <main className="max-w-6xl mx-auto p-6 animate-fade-in">
+                        {view === 'home' && (
+                            <div className="grid md:grid-cols-2 gap-8 py-12">
+                                <div onClick={() => setView('view-materi')} className="group cursor-pointer bg-white p-10 rounded-[2.5rem] shadow-xl border-b-8 border-emerald-200 hover:border-emerald-500 transition-all hover:-translate-y-1">
+                                    <div className="bg-teal-50 w-20 h-20 rounded-3xl flex items-center justify-center mb-8 group-hover:bg-emerald-600 transition-all">
+                                        <Icon name="Microscope" size={40} className="text-emerald-600 group-hover:text-white" />
+                                    </div>
+                                    <h2 className="text-3xl font-black text-slate-800 mb-4">E-Library</h2>
+                                    <p className="text-slate-500 mb-8 leading-relaxed">Cari dan unduh materi kuliah, jurnal, serta diktat praktikum farmasi secara gratis.</p>
+                                    <div className="flex items-center text-emerald-600 font-black text-sm tracking-wide">JELAJAHI MATERI <Icon name="Chevron-Right" size={20} className="ml-1" /></div>
+                                </div>
+
+                                <div onClick={() => setView('upload-materi')} className="group cursor-pointer bg-white p-10 rounded-[2.5rem] shadow-xl border-b-8 border-slate-200 hover:border-slate-800 transition-all hover:-translate-y-1">
+                                    <div className="bg-slate-50 w-20 h-20 rounded-3xl flex items-center justify-center mb-8 group-hover:bg-slate-800 transition-all">
+                                        <Icon name="Shield-Check" size={40} className="text-slate-600 group-hover:text-white" />
+                                    </div>
+                                    <h2 className="text-3xl font-black text-slate-800 mb-4">Panel Admin</h2>
+                                    <p className="text-slate-500 mb-8 leading-relaxed">Khusus Kaprodi & Dosen untuk mengelola kurikulum dan mempublikasikan bahan ajar.</p>
+                                    <div className="flex items-center text-slate-800 font-black text-sm tracking-wide">KELOLA DATABASE <Icon name="Chevron-Right" size={20} className="ml-1" /></div>
+                                </div>
+                            </div>
+                        )}
+
+                        {view === 'view-materi' && (
+                            <div className="space-y-8">
+                                <div className="bg-white p-8 rounded-[2rem] shadow-sm flex flex-col md:flex-row justify-between items-center gap-6 border-l-8 border-emerald-500">
+                                    <h2 className="text-3xl font-black text-slate-800 flex items-center gap-3">Pustaka Digital <Icon name="Library" className="text-emerald-500" /></h2>
+                                    <div className="relative w-full md:w-96">
+                                        <Icon name="Search" size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                                        <input 
+                                            type="text" 
+                                            placeholder="Cari Mata Kuliah..." 
+                                            className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-emerald-500 outline-none transition-all font-medium"
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid gap-6">
+                                    {courses.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase())).map(course => (
+                                        <div key={course.id} className="bg-white rounded-[2.5rem] shadow-md overflow-hidden border border-slate-100 group">
+                                            <div className="p-6 bg-gradient-to-r from-emerald-50 to-white flex items-center justify-between border-b">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="bg-emerald-600 p-3 rounded-2xl shadow-lg text-white">
+                                                        <Icon name="Book-Open" size={24} />
+                                                    </div>
+                                                    <div>
+                                                        <h3 className="font-black text-slate-800 text-xl">{course.name}</h3>
+                                                        <p className="text-[11px] text-emerald-600 font-bold uppercase tracking-widest">{course.lecturer}</p>
+                                                    </div>
+                                                </div>
+                                                <span className="bg-white px-4 py-1.5 rounded-full border border-emerald-100 text-[10px] font-black text-emerald-700 uppercase">{course.materials.length} Berkas</span>
+                                            </div>
+                                            <div className="p-8 grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                {course.materials.length > 0 ? course.materials.map(file => (
+                                                    <div key={file.id} className="flex flex-col p-5 bg-slate-50 rounded-3xl border-2 border-transparent hover:border-emerald-200 hover:bg-white transition-all group/card">
+                                                        <div className="flex items-center gap-3 mb-4">
+                                                            <div className={`p-2.5 rounded-xl ${file.type === 'PPT' ? 'bg-orange-100 text-orange-600' : 'bg-rose-100 text-rose-600'}`}>
+                                                                <Icon name="File-Text" size={20} />
+                                                            </div>
+                                                            <div className="overflow-hidden">
+                                                                <p className="font-bold text-slate-800 text-sm truncate">{file.title}</p>
+                                                                <p className="text-[10px] text-slate-400 font-bold uppercase">{file.type} • {file.date}</p>
+                                                            </div>
+                                                        </div>
+                                                        <button className="w-full bg-white text-emerald-600 border-2 border-emerald-100 font-black py-2.5 rounded-xl hover:bg-emerald-600 hover:text-white transition-all text-[10px] tracking-widest uppercase">LIHAT MATERI</button>
+                                                    </div>
+                                                )) : <p className="col-span-full text-center py-6 text-slate-400 font-bold italic text-sm">Belum ada materi yang diunggah.</p>}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {view === 'upload-materi' && !isAuthenticated && (
+                            <div className="max-w-md mx-auto py-20">
+                                <div className="bg-white p-12 rounded-[3.5rem] shadow-2xl border-t-8 border-emerald-600 text-center glass-card">
+                                    <div className="bg-emerald-50 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-8 border-4 border-white shadow-lg">
+                                        <Icon name="Lock" size={40} className="text-emerald-600" />
+                                    </div>
+                                    <h2 className="text-2xl font-black mb-2 text-slate-800 tracking-tight">Login Administrator</h2>
+                                    <p className="text-slate-400 text-[10px] font-bold mb-8 uppercase tracking-[0.2em]">Verifikasi Identitas Dosen/Kaprodi</p>
+                                    <input 
+                                        type="password" 
+                                        placeholder="KODE PIN" 
+                                        className="w-full px-6 py-5 bg-slate-50 border-2 border-slate-100 rounded-2xl mb-4 text-center text-2xl font-mono focus:border-emerald-500 outline-none transition-all shadow-inner"
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        onKeyPress={(e) => e.key === 'Enter' && handleVerifyPassword()}
+                                    />
+                                    <button onClick={handleVerifyPassword} className="w-full bg-emerald-700 text-white font-black py-5 rounded-2xl hover:bg-emerald-800 transition shadow-xl shadow-emerald-100 text-xs tracking-[0.2em] uppercase">VERIFIKASI</button>
+                                </div>
+                            </div>
+                        )}
+                        
+                        {(view === 'upload-materi' || view === 'admin') && isAuthenticated && (
+                            <div className="space-y-8">
+                                <div className="bg-slate-900 p-8 rounded-[2.5rem] shadow-xl text-white flex justify-between items-center border-b-8 border-emerald-500">
+                                    <div className="flex items-center gap-6">
+                                        <div className="bg-emerald-500 p-4 rounded-2xl shadow-lg text-slate-900"><Icon name="Layout-Dashboard" size={32} /></div>
+                                        <div>
+                                            <h2 className="text-2xl font-black uppercase tracking-wider">Console Manajemen</h2>
+                                            <p className="text-emerald-400 text-[10px] font-bold tracking-widest uppercase">Akses Level: Kepala Program Studi</p>
+                                        </div>
+                                    </div>
+                                    <button onClick={() => setIsAuthenticated(false)} className="bg-rose-500 hover:bg-rose-600 text-white px-8 py-4 rounded-2xl text-[10px] font-black tracking-widest transition shadow-lg uppercase">Keluar Sesi</button>
+                                </div>
+
+                                <div className="grid lg:grid-cols-5 gap-8 items-start">
+                                    <div className="lg:col-span-2 space-y-6">
+                                        {/* Form Tambah Matkul */}
+                                        <div className="bg-white p-8 rounded-[2.5rem] shadow-md border-b-4 border-emerald-500">
+                                            <h3 className="font-black text-slate-800 mb-6 flex items-center gap-2 uppercase text-sm tracking-wider"><Icon name="Plus-Circle" className="text-emerald-600" /> Registrasi Matkul</h3>
+                                            <form onSubmit={addCourse} className="space-y-4">
+                                                <div className="space-y-2">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Nama Mata Kuliah</label>
+                                                    <input type="text" className="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:border-emerald-300 border-2 border-transparent font-medium" placeholder="Cth: Kimia Organik II" value={newCourse.name} onChange={(e) => setNewCourse({...newCourse, name: e.target.value})} required />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <label className="text-[10px] font-black text-slate-400 uppercase ml-2 tracking-widest">Dosen Pengampu</label>
+                                                    <input type="text" className="w-full p-4 bg-slate-50 rounded-2xl outline-none focus:border-emerald-300 border-2 border-transparent font-medium" placeholder="Gelar Lengkap (Apt...)" value={newCourse.lecturer} onChange={(e) => setNewCourse({...newCourse, lecturer: e.target.value})} required />
+                                                </div>
+                                                <button type="submit" className="w-full bg-emerald-600 text-white py-4 rounded-2xl font-black text-[10px] tracking-[0.2em] hover:bg-emerald-700 transition shadow-lg">TAMBAHKAN MATA KULIAH</button>
+                                            </form>
+                                        </div>
+
+                                        {/* Form Unggah Berkas */}
+                                        <div className="bg-white p-8 rounded-[2.5rem] shadow-md border-b-4 border-teal-500">
+                                            <h3 className="font-black text-slate-800 mb-6 flex items-center gap-2 uppercase text-sm tracking-wider"><Icon name="Upload" className="text-teal-600" /> Publikasi Berkas</h3>
+                                            <form onSubmit={uploadMaterial} className="space-y-4">
+                                                <select className="w-full p-4 bg-slate-50 rounded-2xl outline-none font-bold text-slate-700 border-2 border-transparent focus:border-teal-300" value={newMaterial.courseId} onChange={(e) => setNewMaterial({...newMaterial, courseId: e.target.value})} required>
+                                                    <option value="">-- Pilih Mata Kuliah --</option>
+                                                    {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                                </select>
+                                                <input type="text" className="w-full p-4 bg-slate-50 rounded-2xl outline-none border-2 border-transparent focus:border-teal-300 font-medium" placeholder="Judul Materi (Cth: Modul 1)" value={newMaterial.title} onChange={(e) => setNewMaterial({...newMaterial, title: e.target.value})} required />
+                                                <select className="w-full p-4 bg-slate-50 rounded-2xl outline-none font-bold text-slate-700 border-2 border-transparent focus:border-teal-300" value={newMaterial.type} onChange={(e) => setNewMaterial({...newMaterial, type: e.target.value})}>
+                                                    <option value="PDF">Dokumen PDF</option>
+                                                    <option value="PPT">PowerPoint Slide</option>
+                                                    <option value="DOCX">Microsoft Word</option>
+                                                </select>
+                                                
+                                                <input type="file" id="file-uploader" className="hidden" onChange={handleFileSelect} />
+                                                <label htmlFor="file-uploader" className={`w-full p-5 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all ${selectedFile ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 hover:bg-slate-50'}`}>
+                                                    <Icon name={selectedFile ? "File-Check" : "Folder-Open"} size={32} className={selectedFile ? "text-emerald-600" : "text-slate-300"} />
+                                                    <span className="mt-2 text-[10px] font-black text-slate-400 uppercase text-center">
+                                                        {selectedFile ? selectedFile.name : "Klik untuk Pilih File"}
+                                                    </span>
+                                                </label>
+
+                                                <button type="submit" disabled={!selectedFile} className={`w-full py-4 rounded-2xl font-black text-[10px] tracking-[0.2em] transition-all shadow-lg ${selectedFile ? 'bg-teal-600 text-white hover:bg-teal-700' : 'bg-slate-100 text-slate-300 cursor-not-allowed'}`}>TERBITKAN MATERI</button>
+                                            </form>
+                                        </div>
+                                    </div>
+
+                                    <div className="lg:col-span-3">
+                                        <div className="bg-white p-8 rounded-[3rem] shadow-md border-t-8 border-slate-50 min-h-[600px]">
+                                            <div className="flex justify-between items-center mb-8 border-b pb-4">
+                                                <h3 className="font-black text-slate-800 uppercase text-sm tracking-widest">Inventaris Kurikulum</h3>
+                                                <span className="bg-slate-100 px-4 py-1.5 rounded-full text-[10px] font-black text-slate-500 uppercase">{courses.length} Matkul Terdaftar</span>
+                                            </div>
+                                            
+                                            <div className="space-y-4">
+                                                {courses.map(course => (
+                                                    <div key={course.id} className="p-6 border-2 border-slate-50 rounded-[2rem] flex flex-col md:flex-row justify-between items-center group hover:bg-emerald-50/30 hover:border-emerald-100 transition-all duration-300">
+                                                        {editingCourse?.id === course.id ? (
+                                                            <div className="w-full grid gap-4">
+                                                                <input className="w-full p-4 bg-white rounded-2xl border-2 border-emerald-400 outline-none font-bold" value={editingCourse.name} onChange={(e) => setEditingCourse({...editingCourse, name: e.target.value})} />
+                                                                <input className="w-full p-4 bg-white rounded-2xl border-2 border-emerald-400 outline-none font-medium" value={editingCourse.lecturer} onChange={(e) => setEditingCourse({...editingCourse, lecturer: e.target.value})} />
+                                                                <div className="flex gap-2">
+                                                                    <button onClick={updateCourse} className="flex-1 bg-emerald-600 text-white py-3 rounded-xl text-[10px] font-black uppercase tracking-widest">Simpan Perubahan</button>
+                                                                    <button onClick={() => setEditingCourse(null)} className="flex-1 bg-slate-200 text-slate-600 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest">Batal</button>
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <>
+                                                                <div className="flex items-center gap-5 mb-4 md:mb-0">
+                                                                    <div className="bg-white p-4 rounded-2xl shadow-sm group-hover:shadow-md transition">
+                                                                        <Icon name="Flask-Conical" className="text-emerald-600" size={24} />
+                                                                    </div>
+                                                                    <div>
+                                                                        <h4 className="font-black text-slate-800 text-lg leading-tight">{course.name}</h4>
+                                                                        <p className="text-[11px] text-emerald-600 font-bold uppercase tracking-tighter mt-1">{course.lecturer}</p>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="flex items-center gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-all duration-300">
+                                                                    <button onClick={() => setEditingCourse(course)} className="bg-white p-3 rounded-xl border border-slate-100 text-blue-600 hover:bg-blue-600 hover:text-white transition shadow-sm"><Icon name="Edit-3" size={18} /></button>
+                                                                    <button onClick={() => deleteCourse(course.id)} className="bg-white p-3 rounded-xl border border-slate-100 text-rose-600 hover:bg-rose-600 hover:text-white transition shadow-sm"><Icon name="Trash-2" size={18} /></button>
+                                                                </div>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                                {courses.length === 0 && <div className="text-center py-20 bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200 text-slate-400 font-bold italic uppercase text-xs tracking-widest">Database Kosong</div>}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </main>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
